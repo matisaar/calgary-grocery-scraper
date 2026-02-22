@@ -20,7 +20,7 @@ from datetime import datetime
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 DB_PATH = os.path.join(DATA_DIR, "grocery_prices.db")
 
-STORES = ["walmart", "superstore", "saveonfoods", "nofrills", "safeway"]
+STORES = ["walmart", "superstore", "saveonfoods", "nofrills", "safeway", "costco"]
 
 
 def clear_database():

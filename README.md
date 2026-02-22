@@ -5,13 +5,12 @@ built using techniques from **Fabien's WebScraping Anti-Ban Workshop**.
 
 ## Stores Scraped
 
-| Store | Method | Notes |
-|-------|--------|-------|
-| **Real Canadian Superstore** | Playwright + data-testid selectors | Loblaw Iceberg platform |
-| **No Frills** | Playwright + data-testid selectors | Same Loblaw platform as Superstore |
-| **Save-On-Foods** | Playwright search endpoint | Instacart-powered SPA |
-| **Safeway** | Playwright via voila.ca | Sobeys/Voilà platform, JSON-LD + DOM |
-| **Walmart** | Playwright (often blocked) | Aggressive bot detection — needs proxies |
+| Store | Method | Products | Notes |
+|-------|--------|----------|-------|
+| **Walmart** | `curl_cffi` (browser TLS impersonation) | ~3,600+ | Bypasses PerimeterX via __NEXT_DATA__ extraction |
+| **Real Canadian Superstore** | Scrapy + Playwright | ~1,200+ | Loblaw PCX platform, pagination |
+| **No Frills** | Scrapy + Playwright | ~700+ | Same Loblaw platform, pagination |
+| **Costco** | Camoufox stealth browser | ~450+ | Akamai Bot Manager — homepage warmup trick |
 
 ## Anti-Detection Techniques Used
 
@@ -40,13 +39,21 @@ playwright install --with-deps chromium
 ### 2. Scrape all stores
 
 ```bash
+# Loblaw stores (Superstore + No Frills) via Scrapy
 python run_scraper.py --all
+
+# Walmart + Costco via stealth scraper
+python camoufox_scraper.py --all
 ```
 
 Or scrape specific stores:
 
 ```bash
-python run_scraper.py --store walmart superstore
+python run_scraper.py --store superstore
+python camoufox_scraper.py --store walmart
+python camoufox_scraper.py --store costco
+python camoufox_scraper.py --store walmart --query "milk"
+python camoufox_scraper.py --store walmart --proxy http://user:pass@host:port
 ```
 
 ### 3. View the comparison website
@@ -57,14 +64,23 @@ python web/app.py
 
 Then open http://127.0.0.1:5000
 
-## Stealth Scraper (Camoufox)
+## Stealth Scraper (Camoufox + curl_cffi)
 
-For sites with aggressive bot detection, use the Camoufox-based scraper:
+For sites with aggressive bot detection:
 
 ```bash
-pip install camoufox[geoip]
-python camoufox_scraper.py "milk" --all-stores
-python camoufox_scraper.py "chicken breast" --store safeway
+# Walmart: uses curl_cffi (browser TLS fingerprinting) — no browser needed
+python camoufox_scraper.py --store walmart
+
+# Costco: uses Camoufox (stealth Firefox fork) — bypasses Akamai
+python camoufox_scraper.py --store costco
+
+# Both stores
+python camoufox_scraper.py --all
+
+# Single search with optional proxy
+python camoufox_scraper.py --store walmart --query "chicken breast"
+python camoufox_scraper.py --store walmart --proxy socks5://host:port
 ```
 
 ## Project Structure

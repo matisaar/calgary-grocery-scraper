@@ -67,11 +67,24 @@ JS_EXTRACT = """
 class SuperstoreSpider(scrapy.Spider):
     name = "superstore"
     store_name = "superstore"
+    MAX_PAGES = 5  # Max pages per category
 
     custom_settings = {
         "DOWNLOAD_DELAY": 5,
         "CONCURRENT_REQUESTS": 1,
     }
+
+    def _pw_context(self):
+        return {
+            "user_agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/131.0.0.0 Safari/537.36"
+            ),
+            "viewport": {"width": 1920, "height": 1080},
+            "locale": "en-CA",
+            "timezone_id": "America/Edmonton",
+        }
 
     def start_requests(self):
         for cat in CATEGORIES:
@@ -81,17 +94,9 @@ class SuperstoreSpider(scrapy.Spider):
                 meta={
                     "playwright": True,
                     "playwright_include_page": True,
-                    "playwright_context_kwargs": {
-                        "user_agent": (
-                            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-                            "AppleWebKit/537.36 (KHTML, like Gecko) "
-                            "Chrome/131.0.0.0 Safari/537.36"
-                        ),
-                        "viewport": {"width": 1920, "height": 1080},
-                        "locale": "en-CA",
-                        "timezone_id": "America/Edmonton",
-                    },
+                    "playwright_context_kwargs": self._pw_context(),
                     "category": cat["name"],
+                    "page_num": 1,
                 },
                 errback=self.errback_close_page,
             )
@@ -99,16 +104,20 @@ class SuperstoreSpider(scrapy.Spider):
     async def parse_category(self, response):
         page = response.meta.get("playwright_page")
         category = response.meta.get("category", "")
+        page_num = response.meta.get("page_num", 1)
 
         try:
             await page.wait_for_timeout(6000)
 
-            for _ in range(5):
+            # Scroll to load all lazy products
+            for _ in range(6):
                 await page.evaluate("window.scrollBy(0, window.innerHeight)")
                 await page.wait_for_timeout(1500)
 
             products = await page.evaluate(JS_EXTRACT)
-            self.logger.info(f"[Superstore] {category}: found {len(products)} products")
+            self.logger.info(
+                f"[Superstore] {category} p{page_num}: found {len(products)} products"
+            )
 
             seen = set()
             for p in products:
@@ -117,8 +126,50 @@ class SuperstoreSpider(scrapy.Spider):
                     seen.add(item.get("product_name"))
                     yield item
 
+            # Pagination: check for next page button and follow it
+            if len(products) > 0 and page_num < self.MAX_PAGES:
+                has_next = await page.evaluate("""
+                    () => {
+                        const next = document.querySelector(
+                            'a[aria-label="Next results"], ' +
+                            'a[aria-label="Next Page"], ' +
+                            'button[aria-label="Next results"], ' +
+                            '[data-testid="pagination-next"], ' +
+                            '.pagination a:last-child'
+                        );
+                        if (next && !next.disabled && !next.classList.contains('disabled')) {
+                            return next.href || true;
+                        }
+                        return false;
+                    }
+                """)
+
+                if has_next:
+                    # Build next page URL
+                    next_url = response.url
+                    if '?page=' in next_url:
+                        next_url = re.sub(r'page=\d+', f'page={page_num + 1}', next_url)
+                    elif '?' in next_url:
+                        next_url += f'&page={page_num + 1}'
+                    else:
+                        next_url += f'?page={page_num + 1}'
+
+                    self.logger.info(f"[Superstore] {category}: following page {page_num + 1}")
+                    yield scrapy.Request(
+                        url=next_url,
+                        callback=self.parse_category,
+                        meta={
+                            "playwright": True,
+                            "playwright_include_page": True,
+                            "playwright_context_kwargs": self._pw_context(),
+                            "category": category,
+                            "page_num": page_num + 1,
+                        },
+                        errback=self.errback_close_page,
+                    )
+
         except Exception as e:
-            self.logger.error(f"[Superstore] Error in {category}: {e}")
+            self.logger.error(f"[Superstore] Error in {category} p{page_num}: {e}")
         finally:
             if page:
                 await page.close()

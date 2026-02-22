@@ -22,6 +22,8 @@ class AntiDetectionMiddleware:
         "saveonfoods": "https://www.google.ca/search?q=save+on+foods+calgary",
         "nofrills": "https://www.google.ca/search?q=no+frills+calgary",
         "safeway": "https://www.google.ca/search?q=safeway+calgary",
+        "costco": "https://www.google.ca/search?q=costco+grocery+calgary",
+        "voila": "https://www.google.ca/search?q=voila+safeway+calgary",
     }
 
     # Sec-CH-UA headers to match Chrome 131

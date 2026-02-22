@@ -94,7 +94,8 @@ class SQLitePipeline:
                 image_url TEXT,
                 in_stock BOOLEAN,
                 on_sale BOOLEAN,
-                scraped_at TEXT
+                scraped_at TEXT,
+                UNIQUE(product_name, store, size)
             )
         """)
         self.cursor.execute("""
@@ -109,12 +110,22 @@ class SQLitePipeline:
         self.conn.commit()
 
     def process_item(self, item, **kwargs):
+        # UPSERT: update price if product already exists, else insert
         self.cursor.execute("""
             INSERT INTO products (
                 product_name, brand, price, regular_price, unit_price,
                 unit, size, category, store, store_location,
                 url, image_url, in_stock, on_sale, scraped_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ON CONFLICT(product_name, store, size) DO UPDATE SET
+                price = excluded.price,
+                regular_price = excluded.regular_price,
+                unit_price = excluded.unit_price,
+                on_sale = excluded.on_sale,
+                in_stock = excluded.in_stock,
+                image_url = excluded.image_url,
+                url = excluded.url,
+                scraped_at = excluded.scraped_at
         """, (
             item.get("product_name"),
             item.get("brand"),
