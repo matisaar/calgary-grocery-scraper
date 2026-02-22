@@ -397,26 +397,74 @@ function renderSearch() {
         </select>
     `;
 
-    // Filter
+    // Filter + relevance scoring
     let results = ALL;
-    if (query) {
-        const ql = query.toLowerCase();
-        results = results.filter(p =>
-            (p.n && p.n.toLowerCase().includes(ql)) ||
-            (p.b && p.b.toLowerCase().includes(ql))
-        );
-    }
     if (store) results = results.filter(p => p.s === store);
     if (category) results = results.filter(p => p.cat === category);
 
-    // Sort
-    const sorters = {
-        price_asc: (a,b) => (a.p||0) - (b.p||0),
-        price_desc: (a,b) => (b.p||0) - (a.p||0),
-        name: (a,b) => (a.n||'').localeCompare(b.n||''),
-        store: (a,b) => (a.s||'').localeCompare(b.s||'') || (a.p||0) - (b.p||0),
-    };
-    results.sort(sorters[sort] || sorters.price_asc);
+    if (query) {
+        const ql = query.toLowerCase().trim();
+        const words = ql.split(/\s+/).filter(w => w.length > 0);
+
+        // Score each product for relevance
+        results = results.map(p => {
+            const name = (p.n || '').toLowerCase();
+            const brand = (p.b || '').toLowerCase();
+            const full = name + ' ' + brand;
+            let score = 0;
+
+            // All query words must appear somewhere in name+brand (hard filter)
+            const allMatch = words.every(w => full.includes(w));
+            if (!allMatch) return null;
+
+            // Exact phrase in name = best
+            if (name.includes(ql)) score += 100;
+            // Exact phrase in brand+name combined
+            else if (full.includes(ql)) score += 80;
+
+            // All words in the product name (not just brand)
+            if (words.every(w => name.includes(w))) score += 50;
+
+            // Name starts with a query word
+            if (words.some(w => name.startsWith(w))) score += 20;
+
+            // Bonus: how many query words appear in name (for partial relevance)
+            score += words.filter(w => name.includes(w)).length * 10;
+
+            // Penalize very long names (likely junk/supplement products)
+            if (name.length > 80) score -= 10;
+
+            // Penalize if query words are far apart in the name
+            if (words.length >= 2) {
+                const positions = words.map(w => name.indexOf(w)).filter(i => i >= 0);
+                if (positions.length >= 2) {
+                    const spread = Math.max(...positions) - Math.min(...positions);
+                    if (spread < 20) score += 15;   // words are close together
+                    else if (spread > 50) score -= 5;
+                }
+            }
+
+            return { ...p, _score: score };
+        }).filter(Boolean);
+
+        // Sort by relevance first, then apply user's chosen sort within same-relevance tiers
+        results.sort((a, b) => b._score - a._score);
+
+        // If user picked a sort other than default, use it as secondary sort
+        if (sort === 'price_asc') results.sort((a,b) => b._score - a._score || (a.p||0) - (b.p||0));
+        else if (sort === 'price_desc') results.sort((a,b) => b._score - a._score || (b.p||0) - (a.p||0));
+        else if (sort === 'name') results.sort((a,b) => b._score - a._score || (a.n||'').localeCompare(b.n||''));
+        else if (sort === 'store') results.sort((a,b) => b._score - a._score || (a.s||'').localeCompare(b.s||'') || (a.p||0) - (b.p||0));
+    } else {
+        // No query — just sort by user preference
+        const sorters = {
+            price_asc: (a,b) => (a.p||0) - (b.p||0),
+            price_desc: (a,b) => (b.p||0) - (a.p||0),
+            name: (a,b) => (a.n||'').localeCompare(b.n||''),
+            store: (a,b) => (a.s||'').localeCompare(b.s||'') || (a.p||0) - (b.p||0),
+        };
+        results.sort(sorters[sort] || sorters.price_asc);
+    }
     results = results.slice(0, 200);
 
     const empty = document.getElementById('search-empty');
