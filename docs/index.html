@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Calgary Grocery Price Compare</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5; color: #333; line-height: 1.6;
+        }
+
+        /* NAV */
+        nav {
+            background: linear-gradient(135deg, #1a5632, #2d8b4e);
+            color: white; padding: 1rem 2rem;
+            display: flex; align-items: center; justify-content: space-between;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15); position: sticky; top: 0; z-index: 100;
+        }
+        nav .logo { font-size: 1.5rem; font-weight: 700; text-decoration: none; color: white; cursor: pointer; }
+        nav .logo span { color: #ffd700; }
+        nav .nav-links { display: flex; gap: 1.5rem; }
+        nav .nav-links a {
+            color: rgba(255,255,255,0.9); text-decoration: none; font-weight: 500;
+            cursor: pointer; transition: color 0.2s;
+        }
+        nav .nav-links a:hover, nav .nav-links a.active { color: #ffd700; }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 2rem; }
+
+        /* SEARCH */
+        .search-box {
+            background: white; padding: 1.5rem; border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08); margin-bottom: 2rem;
+        }
+        .search-box form { display: flex; gap: 0.75rem; }
+        .search-box input[type="text"] {
+            flex: 1; padding: 0.75rem 1rem; font-size: 1.1rem;
+            border: 2px solid #e0e0e0; border-radius: 8px; outline: none; transition: border-color 0.2s;
+        }
+        .search-box input[type="text"]:focus { border-color: #2d8b4e; }
+        .btn, .search-box button {
+            padding: 0.75rem 1.5rem; background: #2d8b4e; color: white; border: none;
+            border-radius: 8px; cursor: pointer; font-size: 1rem; font-weight: 600; transition: background 0.2s;
+        }
+        .btn:hover, .search-box button:hover { background: #1a5632; }
+        .btn-outline {
+            background: transparent; color: #2d8b4e; border: 2px solid #2d8b4e;
+        }
+        .btn-outline:hover { background: #2d8b4e; color: white; }
+        .btn-sm { padding: 0.4rem 0.8rem; font-size: 0.85rem; }
+
+        /* FILTERS */
+        .filters { display: flex; gap: 0.75rem; margin-bottom: 1.5rem; flex-wrap: wrap; align-items: center; }
+        .filters select {
+            padding: 0.5rem 1rem; border: 2px solid #e0e0e0; border-radius: 8px;
+            font-size: 0.95rem; background: white; cursor: pointer;
+        }
+
+        /* CARDS */
+        .card-grid {
+            display: grid; grid-template-columns: repeat(auto-fill, minmax(270px, 1fr)); gap: 1.5rem;
+        }
+        .card {
+            background: white; border-radius: 12px; overflow: hidden;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06); transition: transform 0.2s, box-shadow 0.2s;
+        }
+        .card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.12); }
+        .card-img {
+            width: 100%; height: 180px; object-fit: contain; background: #fafafa; padding: 1rem;
+        }
+        .card-body { padding: 1rem; }
+        .card-body h3 { font-size: 1rem; margin-bottom: 0.25rem; line-height: 1.3; }
+        .card-body .brand { color: #777; font-size: 0.85rem; margin-bottom: 0.25rem; }
+        .card-body .size { color: #999; font-size: 0.8rem; }
+        .card-price { display: flex; align-items: baseline; gap: 0.5rem; margin: 0.5rem 0; }
+        .price-current { font-size: 1.3rem; font-weight: 700; color: #1a5632; }
+        .price-was { font-size: 0.9rem; color: #999; text-decoration: line-through; }
+
+        .sale-badge {
+            display: inline-block; background: #e74c3c; color: white;
+            padding: 0.15rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600;
+        }
+        .store-badge {
+            display: inline-block; padding: 0.2rem 0.6rem; border-radius: 4px;
+            font-size: 0.8rem; font-weight: 600; color: white;
+        }
+        .store-walmart { background: #0071dc; }
+        .store-realcanadiansuperstore { background: #e31837; }
+        .store-nofrills { background: #fdd017; color: #333; }
+        .store-costco { background: #e31837; }
+        .store-saveonfoods { background: #ee2e24; }
+        .store-safeway { background: #c8102e; }
+
+        /* TABLE */
+        .compare-table {
+            width: 100%; border-collapse: collapse; background: white; border-radius: 12px;
+            overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06); margin-bottom: 1.5rem;
+        }
+        .compare-table th {
+            background: #f8f8f8; padding: 0.75rem 1rem; text-align: left;
+            font-weight: 600; border-bottom: 2px solid #e0e0e0;
+        }
+        .compare-table td { padding: 0.75rem 1rem; border-bottom: 1px solid #f0f0f0; }
+        .compare-table tr:hover { background: #f9fdf9; }
+        .cheapest { background: #e8f5e9 !important; font-weight: 600; }
+
+        /* STATS */
+        .stat-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem; margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: white; padding: 1.25rem; border-radius: 12px;
+            text-align: center; box-shadow: 0 2px 8px rgba(0,0,0,0.06); cursor: pointer;
+            text-decoration: none; color: inherit; transition: transform 0.2s;
+        }
+        .stat-card:hover { transform: translateY(-2px); }
+        .stat-number { font-size: 2rem; font-weight: 700; color: #1a5632; }
+        .stat-label { color: #777; font-size: 0.9rem; }
+
+        /* PILLS */
+        .pills { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+        .pill {
+            padding: 0.4rem 1rem; background: white; border: 2px solid #e0e0e0;
+            border-radius: 20px; text-decoration: none; color: #555; font-size: 0.9rem;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .pill:hover, .pill.active { background: #2d8b4e; color: white; border-color: #2d8b4e; }
+
+        .section-title { font-size: 1.4rem; font-weight: 700; margin-bottom: 1rem; color: #222; }
+
+        /* LOADING */
+        .loading { text-align: center; padding: 4rem; }
+        .loading .spinner {
+            width: 40px; height: 40px; border: 4px solid #e0e0e0;
+            border-top-color: #2d8b4e; border-radius: 50%;
+            animation: spin 0.8s linear infinite; margin: 0 auto 1rem;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        /* PAGE SECTIONS */
+        .page { display: none; }
+        .page.active { display: block; }
+
+        footer { text-align: center; padding: 2rem; color: #999; font-size: 0.85rem; }
+        .count-label { color: #666; margin-bottom: 1rem; }
+
+        /* RESPONSIVE */
+        @media (max-width: 768px) {
+            nav { flex-direction: column; gap: 0.75rem; padding: 0.75rem 1rem; }
+            .search-box form { flex-direction: column; }
+            .card-grid { grid-template-columns: 1fr; }
+            .container { padding: 1rem; }
+        }
+    </style>
+</head>
+<body>
+    <nav>
+        <a class="logo" onclick="showPage('home')">🛒 Calgary <span>Grocery Compare</span></a>
+        <div class="nav-links">
+            <a onclick="showPage('home')" id="nav-home" class="active">Home</a>
+            <a onclick="showPage('search')" id="nav-search">Search</a>
+            <a onclick="showPage('stats')" id="nav-stats">Stats</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <!-- LOADING -->
+        <div id="loading" class="loading">
+            <div class="spinner"></div>
+            <p>Loading 6,000+ grocery prices...</p>
+        </div>
+
+        <!-- ============ HOME PAGE ============ -->
+        <div id="page-home" class="page">
+            <div class="search-box">
+                <form onsubmit="doSearch(document.getElementById('home-q').value); return false;">
+                    <input type="text" id="home-q" placeholder="Search groceries... (e.g. milk, chicken breast, bananas)" autofocus>
+                    <button type="submit">Compare Prices</button>
+                </form>
+            </div>
+
+            <div class="stat-grid" id="home-stats"></div>
+
+            <h2 class="section-title">Browse by Category</h2>
+            <div class="pills" id="home-categories"></div>
+
+            <h2 class="section-title">Stores</h2>
+            <div class="pills" id="home-stores"></div>
+
+            <div id="home-deals"></div>
+        </div>
+
+        <!-- ============ SEARCH PAGE ============ -->
+        <div id="page-search" class="page">
+            <div class="search-box">
+                <form onsubmit="doSearch(document.getElementById('search-q').value); return false;">
+                    <input type="text" id="search-q" placeholder="Search groceries...">
+                    <button type="submit">Search</button>
+                </form>
+            </div>
+
+            <div class="filters" id="search-filters"></div>
+            <p class="count-label" id="search-count"></p>
+
+            <!-- Comparison groups -->
+            <div id="search-groups"></div>
+
+            <!-- All results -->
+            <h2 class="section-title" id="search-all-title" style="display:none;">All Results</h2>
+            <div class="card-grid" id="search-results"></div>
+
+            <div id="search-empty" style="display:none; text-align:center; padding:3rem; background:white; border-radius:12px;">
+                <p style="color:#999;">Type a search term above to compare prices across stores.</p>
+            </div>
+        </div>
+
+        <!-- ============ CATEGORY PAGE ============ -->
+        <div id="page-category" class="page">
+            <h1 class="section-title" id="cat-title"></h1>
+            <p class="count-label" id="cat-count"></p>
+            <div class="pills" id="cat-stores"></div>
+            <table class="compare-table" id="cat-table">
+                <thead>
+                    <tr><th>Product</th><th>Brand</th><th>Size</th><th>Store</th><th>Price</th><th>Regular</th><th></th></tr>
+                </thead>
+                <tbody id="cat-tbody"></tbody>
+            </table>
+        </div>
+
+        <!-- ============ STATS PAGE ============ -->
+        <div id="page-stats" class="page">
+            <h1 class="section-title">📊 Scraping Statistics</h1>
+
+            <h2 class="section-title" style="font-size:1.2rem;">Products by Store</h2>
+            <table class="compare-table">
+                <thead><tr><th>Store</th><th>Products</th><th>Avg Price</th><th>Last Scraped</th></tr></thead>
+                <tbody id="stats-stores"></tbody>
+            </table>
+
+            <h2 class="section-title" style="font-size:1.2rem; margin-top:2rem;">Products by Category</h2>
+            <div class="stat-grid" id="stats-cats"></div>
+
+            <h2 class="section-title" style="font-size:1.2rem; margin-top:2rem;">Cheapest Store by Category (Avg Price)</h2>
+            <table class="compare-table">
+                <thead><tr><th>Category</th><th>Store</th><th>Avg Price</th></tr></thead>
+                <tbody id="stats-cheapest"></tbody>
+            </table>
+
+            <p id="stats-updated" style="color:#999; margin-top:2rem; text-align:center;"></p>
+        </div>
+    </div>
+
+    <footer>
+        <p>Calgary Grocery Price Compare — Data scraped from Walmart, Superstore, No Frills &amp; Costco</p>
+        <p id="footer-updated"></p>
+    </footer>
+
+<script>
+/* ───────────────────── DATA ───────────────────── */
+let ALL = [];         // all products
+let STATS = {};       // stats summary
+let currentPage = 'home';
+let searchState = { query: '', store: '', category: '', sort: 'price_asc' };
+
+const BASE = (() => {
+    const s = document.querySelector('script[src]');
+    // GitHub Pages URL base — works for both / and /repo-name/
+    const p = location.pathname.replace(/\/[^/]*$/, '/');
+    return p.endsWith('/') ? p : p + '/';
+})();
+
+function dataUrl(file) {
+    return BASE + 'data/' + file;
+}
+
+/* ───────────────────── INIT ───────────────────── */
+(async function init() {
+    try {
+        const [pRes, sRes] = await Promise.all([
+            fetch(dataUrl('products.json')),
+            fetch(dataUrl('stats.json'))
+        ]);
+        ALL = await pRes.json();
+        STATS = await sRes.json();
+    } catch(e) {
+        document.getElementById('loading').innerHTML =
+            '<p style="color:red;">Failed to load data. Run <code>python export_static.py</code> first.</p>';
+        return;
+    }
+
+    document.getElementById('loading').style.display = 'none';
+    renderHome();
+    renderStatsPage();
+    showPage('home');
+})();
+
+/* ───────────────────── HELPERS ───────────────────── */
+function storeClass(s) {
+    return 'store-' + (s||'').toLowerCase().replace(/[\s\-']/g, '');
+}
+function fmt(n) { return n != null ? '$' + Number(n).toFixed(2) : ''; }
+function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function storeBadge(s) { return `<span class="store-badge ${storeClass(s)}">${esc(s)}</span>`; }
+
+/* ───────────────────── NAVIGATION ───────────────────── */
+function showPage(page) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.nav-links a').forEach(a => a.classList.remove('active'));
+
+    currentPage = page;
+    const el = document.getElementById('page-' + page);
+    if (el) el.classList.add('active');
+
+    const navEl = document.getElementById('nav-' + page);
+    if (navEl) navEl.classList.add('active');
+
+    if (page === 'search') {
+        document.getElementById('search-q').focus();
+        if (!searchState.query && !searchState.category) {
+            document.getElementById('search-empty').style.display = 'block';
+        }
+    }
+}
+
+/* ───────────────────── HOME ───────────────────── */
+function renderHome() {
+    const cats = [...new Set(ALL.map(p => p.cat).filter(Boolean))].sort();
+    const stores = [...new Set(ALL.map(p => p.s).filter(Boolean))].sort();
+
+    // Stats overview
+    document.getElementById('home-stats').innerHTML = `
+        <div class="stat-card"><div class="stat-number">${STATS.total.toLocaleString()}</div><div class="stat-label">Products Tracked</div></div>
+        <div class="stat-card"><div class="stat-number">${stores.length}</div><div class="stat-label">Stores Compared</div></div>
+        <div class="stat-card"><div class="stat-number">${STATS.on_sale.toLocaleString()}</div><div class="stat-label">Items On Sale</div></div>
+        <div class="stat-card"><div class="stat-number">${cats.length}</div><div class="stat-label">Categories</div></div>
+    `;
+
+    // Category pills
+    document.getElementById('home-categories').innerHTML = cats.length
+        ? cats.map(c => `<a class="pill" onclick="showCategory('${esc(c)}')">${esc(c)}</a>`).join('')
+        : '<p style="color:#999;">No data yet — run the scrapers first!</p>';
+
+    // Store pills
+    document.getElementById('home-stores').innerHTML =
+        stores.map(s => `<a class="pill" onclick="doSearch('', '${esc(s)}')">${esc(s)}</a>`).join('');
+
+    // Best deals (on sale, biggest discount)
+    const deals = ALL
+        .filter(p => p.sale && p.rp && p.rp > p.p)
+        .map(p => ({ ...p, disc: Math.round((1 - p.p / p.rp) * 100) }))
+        .sort((a, b) => b.disc - a.disc)
+        .slice(0, 12);
+
+    if (deals.length) {
+        document.getElementById('home-deals').innerHTML = `
+            <h2 class="section-title">🔥 Best Deals Right Now</h2>
+            <div class="card-grid">${deals.map(productCard).join('')}</div>
+        `;
+    }
+}
+
+/* ───────────────────── SEARCH ───────────────────── */
+function doSearch(q, store, category) {
+    searchState.query = q || '';
+    searchState.store = store || '';
+    searchState.category = category || '';
+    searchState.sort = 'price_asc';
+    showPage('search');
+    document.getElementById('search-q').value = searchState.query;
+    renderSearch();
+}
+
+function renderSearch() {
+    const { query, store, category, sort } = searchState;
+
+    // Build filters
+    const cats = [...new Set(ALL.map(p => p.cat).filter(Boolean))].sort();
+    const stores = [...new Set(ALL.map(p => p.s).filter(Boolean))].sort();
+
+    document.getElementById('search-filters').innerHTML = `
+        <select id="f-cat" onchange="searchState.category=this.value; renderSearch()">
+            <option value="">All Categories</option>
+            ${cats.map(c => `<option value="${esc(c)}" ${category===c?'selected':''}>${esc(c)}</option>`).join('')}
+        </select>
+        <select id="f-store" onchange="searchState.store=this.value; renderSearch()">
+            <option value="">All Stores</option>
+            ${stores.map(s => `<option value="${esc(s)}" ${store===s?'selected':''}>${esc(s)}</option>`).join('')}
+        </select>
+        <select id="f-sort" onchange="searchState.sort=this.value; renderSearch()">
+            <option value="price_asc" ${sort==='price_asc'?'selected':''}>Price: Low → High</option>
+            <option value="price_desc" ${sort==='price_desc'?'selected':''}>Price: High → Low</option>
+            <option value="name" ${sort==='name'?'selected':''}>Name A–Z</option>
+            <option value="store" ${sort==='store'?'selected':''}>By Store</option>
+        </select>
+    `;
+
+    // Filter
+    let results = ALL;
+    if (query) {
+        const ql = query.toLowerCase();
+        results = results.filter(p =>
+            (p.n && p.n.toLowerCase().includes(ql)) ||
+            (p.b && p.b.toLowerCase().includes(ql))
+        );
+    }
+    if (store) results = results.filter(p => p.s === store);
+    if (category) results = results.filter(p => p.cat === category);
+
+    // Sort
+    const sorters = {
+        price_asc: (a,b) => (a.p||0) - (b.p||0),
+        price_desc: (a,b) => (b.p||0) - (a.p||0),
+        name: (a,b) => (a.n||'').localeCompare(b.n||''),
+        store: (a,b) => (a.s||'').localeCompare(b.s||'') || (a.p||0) - (b.p||0),
+    };
+    results.sort(sorters[sort] || sorters.price_asc);
+    results = results.slice(0, 200);
+
+    const empty = document.getElementById('search-empty');
+    const allTitle = document.getElementById('search-all-title');
+
+    if (!query && !category && !store) {
+        empty.style.display = 'block';
+        document.getElementById('search-count').textContent = '';
+        document.getElementById('search-groups').innerHTML = '';
+        document.getElementById('search-results').innerHTML = '';
+        allTitle.style.display = 'none';
+        return;
+    }
+
+    empty.style.display = 'none';
+    document.getElementById('search-count').innerHTML =
+        `Found <strong>${results.length}</strong> results` +
+        (query ? ` for "<strong>${esc(query)}</strong>"` : '') +
+        (category ? ` in <strong>${esc(category)}</strong>` : '');
+
+    // Build comparison groups (group by first 4 words of name)
+    const groups = {};
+    results.forEach(p => {
+        const key = (p.n||'').toLowerCase().split(/\s+/).slice(0, 4).join(' ');
+        if (!groups[key]) groups[key] = [];
+        groups[key].push(p);
+    });
+
+    let groupsHtml = '';
+    for (const [key, items] of Object.entries(groups)) {
+        if (items.length < 2) continue;
+        const sorted = [...items].sort((a,b) => (a.p||0) - (b.p||0));
+        groupsHtml += `
+            <div style="margin-bottom:2rem;">
+                <h3 class="section-title" style="font-size:1.1rem; text-transform:capitalize;">${esc(key)}</h3>
+                <table class="compare-table">
+                    <thead><tr><th>Product</th><th>Size</th><th>Store</th><th>Price</th><th>Regular</th><th></th></tr></thead>
+                    <tbody>
+                        ${sorted.map((p, i) => `
+                            <tr ${i===0?'class="cheapest"':''}>
+                                <td>${esc(p.n)}${p.b?'<br><small style="color:#999">'+esc(p.b)+'</small>':''}</td>
+                                <td>${esc(p.sz||'—')}</td>
+                                <td>${storeBadge(p.s)}</td>
+                                <td><strong>${fmt(p.p)}</strong>${i===0?' ✅':''}</td>
+                                <td>${p.rp?'<span class="price-was">'+fmt(p.rp)+'</span>':''}</td>
+                                <td>${p.url?'<a href="'+esc(p.url)+'" target="_blank" style="color:#2d8b4e;">View →</a>':''}</td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            </div>
+        `;
+    }
+    document.getElementById('search-groups').innerHTML = groupsHtml;
+
+    // All results as cards
+    allTitle.style.display = 'block';
+    document.getElementById('search-results').innerHTML = results.map(productCard).join('');
+}
+
+/* ───────────────────── CATEGORY PAGE ───────────────────── */
+function showCategory(cat) {
+    showPage('category');
+    document.getElementById('nav-search').classList.add('active');
+
+    const items = ALL.filter(p => p.cat === cat).sort((a,b) => (a.n||'').localeCompare(b.n||'') || (a.p||0) - (b.p||0));
+    const stores = [...new Set(items.map(p => p.s).filter(Boolean))].sort();
+
+    document.getElementById('cat-title').textContent = cat;
+    document.getElementById('cat-count').innerHTML =
+        `${items.length} products across ${stores.length} stores`;
+
+    document.getElementById('cat-stores').innerHTML =
+        `<a class="pill active" onclick="showCategory('${esc(cat)}')">All Stores</a>` +
+        stores.map(s => `<a class="pill" onclick="doSearch('', '${esc(s)}', '${esc(cat)}')">${esc(s)}</a>`).join('');
+
+    document.getElementById('cat-tbody').innerHTML = items.slice(0, 300).map(p => `
+        <tr ${p.sale?'style="background:#fff8e1;"':''}>
+            <td><strong>${esc(p.n)}</strong></td>
+            <td>${esc(p.b||'—')}</td>
+            <td>${esc(p.sz||'—')}</td>
+            <td>${storeBadge(p.s)}</td>
+            <td><strong>${fmt(p.p)}</strong></td>
+            <td>${p.rp?'<span class="price-was">'+fmt(p.rp)+'</span>':''}</td>
+            <td>${p.url?'<a href="'+esc(p.url)+'" target="_blank" style="color:#2d8b4e;">View →</a>':''}</td>
+        </tr>
+    `).join('');
+}
+
+/* ───────────────────── STATS PAGE ───────────────────── */
+function renderStatsPage() {
+    if (!STATS.stores) return;
+
+    document.getElementById('stats-stores').innerHTML = STATS.stores.map(s => `
+        <tr>
+            <td>${storeBadge(s.store)}</td>
+            <td><strong>${s.count.toLocaleString()}</strong></td>
+            <td>${fmt(s.avg_price)}</td>
+            <td>${s.last_scraped || '—'}</td>
+        </tr>
+    `).join('');
+
+    document.getElementById('stats-cats').innerHTML = STATS.categories.map(c => `
+        <a class="stat-card" onclick="showCategory('${esc(c.category)}')">
+            <div class="stat-number" style="font-size:1.5rem;">${c.count}</div>
+            <div class="stat-label">${esc(c.category)}</div>
+        </a>
+    `).join('');
+
+    // Cheapest by category — highlight first per category
+    let lastCat = '';
+    document.getElementById('stats-cheapest').innerHTML = STATS.cheapest_by_cat.map(r => {
+        const isFirst = r.category !== lastCat;
+        lastCat = r.category;
+        return `
+            <tr ${isFirst?'class="cheapest"':''}>
+                <td>${isFirst?'<strong>'+esc(r.category)+'</strong>':''}</td>
+                <td>${storeBadge(r.store)}</td>
+                <td>${fmt(r.avg_price)}</td>
+            </tr>
+        `;
+    }).join('');
+
+    const updated = STATS.exported_at || '';
+    document.getElementById('stats-updated').textContent = updated ? 'Data exported: ' + updated : '';
+    document.getElementById('footer-updated').textContent = updated ? 'Prices last updated: ' + updated : '';
+}
+
+/* ───────────────────── PRODUCT CARD ───────────────────── */
+function productCard(p) {
+    const disc = (p.rp && p.rp > p.p) ? Math.round((1 - p.p / p.rp) * 100) : 0;
+    return `
+        <div class="card">
+            ${p.img ? `<img class="card-img" src="${esc(p.img)}" alt="${esc(p.n)}" loading="lazy" onerror="this.style.display='none'">` : ''}
+            <div class="card-body">
+                ${storeBadge(p.s)}
+                ${disc > 0 ? `<span class="sale-badge">${disc}% OFF</span>` : ''}
+                ${p.sale ? '<span class="sale-badge">SALE</span>' : ''}
+                <h3>${esc(p.n)}</h3>
+                ${p.b ? `<div class="brand">${esc(p.b)}</div>` : ''}
+                ${p.sz ? `<div class="size">${esc(p.sz)}</div>` : ''}
+                <div class="card-price">
+                    <span class="price-current">${fmt(p.p)}</span>
+                    ${p.rp ? `<span class="price-was">${fmt(p.rp)}</span>` : ''}
+                </div>
+                ${p.up ? `<div class="size">${p.up} ${p.u||''}</div>` : ''}
+                ${p.url ? `<a href="${esc(p.url)}" target="_blank" class="btn btn-outline btn-sm" style="margin-top:0.5rem; display:inline-block;">View →</a>` : ''}
+            </div>
+        </div>
+    `;
+}
+</script>
+</body>
+</html>
