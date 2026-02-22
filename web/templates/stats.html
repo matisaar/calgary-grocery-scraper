@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}Stats — Calgary Grocery Compare{% endblock %}
+
+{% block content %}
+<h1 class="section-title">📊 Scraping Statistics</h1>
+
+<!-- Store Overview -->
+<h2 class="section-title" style="font-size:1.2rem;">Products by Store</h2>
+<table class="compare-table">
+    <thead>
+        <tr>
+            <th>Store</th>
+            <th>Products</th>
+            <th>Avg Price</th>
+            <th>First Scraped</th>
+            <th>Last Scraped</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for s in store_counts %}
+        <tr>
+            <td>
+                <span class="store-badge store-{{ s.store|lower|replace(' ', '')|replace('-', '') }}">
+                    {{ s.store }}
+                </span>
+            </td>
+            <td><strong>{{ s.count }}</strong></td>
+            <td>${{ s.avg_price }}</td>
+            <td>{{ s.first_scraped or '—' }}</td>
+            <td>{{ s.last_scraped or '—' }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+<!-- Products by Category -->
+<h2 class="section-title" style="font-size:1.2rem; margin-top:2rem;">Products by Category</h2>
+<div class="card-grid" style="grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));">
+    {% for c in cat_counts %}
+    <a href="/category/{{ c.category }}" class="stat-card" style="text-decoration:none; color:inherit;">
+        <div class="stat-number" style="font-size:1.5rem;">{{ c.count }}</div>
+        <div class="stat-label">{{ c.category }}</div>
+    </a>
+    {% endfor %}
+</div>
+
+<!-- Cheapest Store by Category -->
+<h2 class="section-title" style="font-size:1.2rem; margin-top:2rem;">Cheapest Store by Category (Average Price)</h2>
+<table class="compare-table">
+    <thead>
+        <tr>
+            <th>Category</th>
+            <th>Store</th>
+            <th>Avg Price</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% set ns = namespace(last_cat='') %}
+        {% for row in cheapest_by_cat %}
+        <tr {% if ns.last_cat != row.category %}class="cheapest"{% endif %}>
+            <td>
+                {% if ns.last_cat != row.category %}
+                <strong>{{ row.category }}</strong>
+                {% set ns.last_cat = row.category %}
+                {% endif %}
+            </td>
+            <td>
+                <span class="store-badge store-{{ row.store|lower|replace(' ', '')|replace('-', '') }}">
+                    {{ row.store }}
+                </span>
+            </td>
+            <td>${{ row.avg_price }}</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if not store_counts %}
+<div style="text-align:center; padding:3rem; background:white; border-radius:12px; margin-top:2rem;">
+    <p style="color:#999;">No data yet. Run the scrapers to see statistics!</p>
+</div>
+{% endif %}
+{% endblock %}

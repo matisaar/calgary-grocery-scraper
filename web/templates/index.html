@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+
+{% block content %}
+<!-- Search -->
+<div class="search-box">
+    <form action="/search" method="GET">
+        <input type="text" name="q" placeholder="Search groceries... (e.g. milk, chicken breast, bananas)" autofocus>
+        <button type="submit">Compare Prices</button>
+    </form>
+</div>
+
+<!-- Stats Overview -->
+<div class="stat-grid">
+    <div class="stat-card">
+        <div class="stat-number">{{ total }}</div>
+        <div class="stat-label">Products Tracked</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">5</div>
+        <div class="stat-label">Stores Compared</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ on_sale }}</div>
+        <div class="stat-label">Items On Sale</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-number">{{ categories|length }}</div>
+        <div class="stat-label">Categories</div>
+    </div>
+</div>
+
+<!-- Browse by Category -->
+<h2 class="section-title">Browse by Category</h2>
+<div class="category-pills">
+    {% for cat in categories %}
+    <a href="/category/{{ cat }}" class="category-pill">{{ cat }}</a>
+    {% endfor %}
+    {% if not categories %}
+    <p style="color: #999;">No data yet — run the scrapers first!</p>
+    {% endif %}
+</div>
+
+<!-- Browse by Store -->
+<h2 class="section-title">Stores</h2>
+<div class="category-pills">
+    {% for store in stores %}
+    <a href="/search?store={{ store }}" class="category-pill">{{ store }}</a>
+    {% endfor %}
+</div>
+
+<!-- Best Deals -->
+{% if deals %}
+<h2 class="section-title">🔥 Best Deals Right Now</h2>
+<div class="card-grid">
+    {% for deal in deals %}
+    <div class="card">
+        {% if deal.image_url %}
+        <img class="card-img" src="{{ deal.image_url }}" alt="{{ deal.product_name }}" loading="lazy"
+             onerror="this.style.display='none'">
+        {% endif %}
+        <div class="card-body">
+            <span class="store-badge store-{{ deal.store|lower|replace(' ', '') }}">{{ deal.store }}</span>
+            {% if deal.discount_pct > 0 %}
+            <span class="sale-badge">{{ deal.discount_pct|int }}% OFF</span>
+            {% endif %}
+            <h3>{{ deal.product_name }}</h3>
+            {% if deal.brand %}<div class="brand">{{ deal.brand }}</div>{% endif %}
+            {% if deal.size %}<div class="size">{{ deal.size }}</div>{% endif %}
+            <div class="card-price">
+                <span class="price-current">${{ "%.2f"|format(deal.price) }}</span>
+                {% if deal.regular_price %}
+                <span class="price-was">${{ "%.2f"|format(deal.regular_price) }}</span>
+                {% endif %}
+            </div>
+            {% if deal.url %}
+            <a href="{{ deal.url }}" target="_blank" class="btn btn-outline" style="font-size:0.85rem; padding:0.4rem 0.8rem;">View →</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
+
+{% if not deals and total == 0 %}
+<div style="text-align:center; padding:3rem; background:white; border-radius:12px; margin-top:2rem;">
+    <h2 style="margin-bottom:1rem;">👋 Welcome to Calgary Grocery Compare!</h2>
+    <p style="color:#666; margin-bottom:1.5rem;">
+        Run the scrapers first to start comparing prices across stores:
+    </p>
+    <code style="background:#f0f0f0; padding:0.75rem 1.5rem; border-radius:8px; font-size:1.1rem; display:inline-block;">
+        python run_scraper.py --all
+    </code>
+    <p style="color:#999; margin-top:1rem;">
+        Or scrape individual stores: <code>python run_scraper.py --store walmart</code>
+    </p>
+</div>
+{% endif %}
+{% endblock %}

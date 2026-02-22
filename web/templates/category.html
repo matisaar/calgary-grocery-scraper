@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+
+{% block title %}{{ category }} — Calgary Grocery Compare{% endblock %}
+
+{% block content %}
+<h1 class="section-title">{{ category }}</h1>
+<p style="color:#666; margin-bottom:1.5rem;">
+    {{ products|length }} products across {{ stores|length }} stores
+</p>
+
+<!-- Store filter pills -->
+<div class="category-pills" style="margin-bottom:1.5rem;">
+    <a href="/category/{{ category }}" class="category-pill active">All Stores</a>
+    {% for store in stores %}
+    <a href="/search?category={{ category }}&store={{ store }}" class="category-pill">{{ store }}</a>
+    {% endfor %}
+</div>
+
+<!-- Price comparison table -->
+<table class="compare-table">
+    <thead>
+        <tr>
+            <th>Product</th>
+            <th>Brand</th>
+            <th>Size</th>
+            <th>Store</th>
+            <th>Price</th>
+            <th>Regular</th>
+            <th>Savings</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for p in products %}
+        <tr {% if p.on_sale %}style="background:#fff8e1;"{% endif %}>
+            <td>
+                <strong>{{ p.product_name }}</strong>
+            </td>
+            <td>{{ p.brand or '—' }}</td>
+            <td>{{ p.size or '—' }}</td>
+            <td>
+                <span class="store-badge store-{{ p.store|lower|replace(' ', '')|replace('-', '') }}">
+                    {{ p.store }}
+                </span>
+            </td>
+            <td><strong>${{ "%.2f"|format(p.price) }}</strong></td>
+            <td>
+                {% if p.regular_price %}
+                <span class="price-was">${{ "%.2f"|format(p.regular_price) }}</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if p.discount_pct and p.discount_pct > 0 %}
+                <span class="sale-badge">{{ p.discount_pct|int }}% OFF</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if p.url %}
+                <a href="{{ p.url }}" target="_blank" style="color:#2d8b4e;">View →</a>
+                {% endif %}
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+
+{% if not products %}
+<div style="text-align:center; padding:3rem; background:white; border-radius:12px;">
+    <p style="color:#999;">No products in this category yet. Run the scrapers first!</p>
+</div>
+{% endif %}
+{% endblock %}

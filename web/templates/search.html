@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+
+{% block title %}Search — Calgary Grocery Compare{% endblock %}
+
+{% block content %}
+<!-- Search -->
+<div class="search-box">
+    <form action="/search" method="GET">
+        <input type="text" name="q" value="{{ query }}" placeholder="Search groceries..." autofocus>
+        <button type="submit">Search</button>
+    </form>
+</div>
+
+<!-- Filters -->
+<div class="filters">
+    <form action="/search" method="GET" id="filterForm" style="display:flex; gap:0.75rem; flex-wrap:wrap; align-items:center;">
+        <input type="hidden" name="q" value="{{ query }}">
+        
+        <select name="category" onchange="document.getElementById('filterForm').submit()">
+            <option value="">All Categories</option>
+            {% for cat in categories %}
+            <option value="{{ cat }}" {% if selected_category == cat %}selected{% endif %}>{{ cat }}</option>
+            {% endfor %}
+        </select>
+        
+        <select name="store" onchange="document.getElementById('filterForm').submit()">
+            <option value="">All Stores</option>
+            {% for store in stores %}
+            <option value="{{ store }}" {% if selected_store == store %}selected{% endif %}>{{ store }}</option>
+            {% endfor %}
+        </select>
+        
+        <select name="sort" onchange="document.getElementById('filterForm').submit()">
+            <option value="price_asc" {% if selected_sort == 'price_asc' %}selected{% endif %}>Price: Low → High</option>
+            <option value="price_desc" {% if selected_sort == 'price_desc' %}selected{% endif %}>Price: High → Low</option>
+            <option value="name" {% if selected_sort == 'name' %}selected{% endif %}>Name A–Z</option>
+            <option value="store" {% if selected_sort == 'store' %}selected{% endif %}>By Store</option>
+            <option value="discount" {% if selected_sort == 'discount' %}selected{% endif %}>Biggest Discount</option>
+        </select>
+    </form>
+</div>
+
+{% if query or selected_category %}
+<p style="color:#666; margin-bottom:1rem;">
+    Found <strong>{{ products|length }}</strong> results
+    {% if query %}for "<strong>{{ query }}</strong>"{% endif %}
+    {% if selected_category %}in <strong>{{ selected_category }}</strong>{% endif %}
+</p>
+{% endif %}
+
+<!-- Comparison Groups -->
+{% if grouped and grouped|length > 0 %}
+{% for group_name, items in grouped.items() %}
+{% if items|length > 1 %}
+<div style="margin-bottom:2rem;">
+    <h3 class="section-title" style="font-size:1.1rem; text-transform:capitalize;">{{ group_name }}</h3>
+    <table class="compare-table">
+        <thead>
+            <tr>
+                <th>Product</th>
+                <th>Size</th>
+                <th>Store</th>
+                <th>Price</th>
+                <th>Regular</th>
+                <th>Unit Price</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in items|sort(attribute='price') %}
+            <tr {% if loop.first %}class="cheapest"{% endif %}>
+                <td>
+                    {{ p.product_name }}
+                    {% if p.brand %}<br><small style="color:#999">{{ p.brand }}</small>{% endif %}
+                </td>
+                <td>{{ p.size or '—' }}</td>
+                <td>
+                    <span class="store-badge store-{{ p.store|lower|replace(' ', '')|replace('-', '') }}">
+                        {{ p.store }}
+                    </span>
+                </td>
+                <td>
+                    {% if p.price %}<strong>${{ "%.2f"|format(p.price) }}</strong>{% endif %}
+                    {% if loop.first %} ✅{% endif %}
+                </td>
+                <td>
+                    {% if p.regular_price %}<span class="price-was">${{ "%.2f"|format(p.regular_price) }}</span>{% endif %}
+                </td>
+                <td>{{ p.unit_price or '—' }} {{ p.unit or '' }}</td>
+                <td>
+                    {% if p.url %}
+                    <a href="{{ p.url }}" target="_blank" style="color:#2d8b4e;">View →</a>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endif %}
+{% endfor %}
+{% endif %}
+
+<!-- All Results as Cards -->
+<h2 class="section-title">All Results</h2>
+<div class="card-grid">
+    {% for p in products %}
+    <div class="card">
+        {% if p.image_url %}
+        <img class="card-img" src="{{ p.image_url }}" alt="{{ p.product_name }}" loading="lazy"
+             onerror="this.style.display='none'">
+        {% endif %}
+        <div class="card-body">
+            <span class="store-badge store-{{ p.store|lower|replace(' ', '')|replace('-', '') }}">
+                {{ p.store }}
+            </span>
+            {% if p.on_sale %}<span class="sale-badge">SALE</span>{% endif %}
+            <h3>{{ p.product_name }}</h3>
+            {% if p.brand %}<div class="brand">{{ p.brand }}</div>{% endif %}
+            {% if p.size %}<div class="size">{{ p.size }}</div>{% endif %}
+            <div class="card-price">
+                {% if p.price %}<span class="price-current">${{ "%.2f"|format(p.price) }}</span>{% endif %}
+                {% if p.regular_price %}<span class="price-was">${{ "%.2f"|format(p.regular_price) }}</span>{% endif %}
+            </div>
+            {% if p.unit_price %}
+            <div class="size">{{ p.unit_price }} {{ p.unit or '' }}</div>
+            {% endif %}
+            {% if p.url %}
+            <a href="{{ p.url }}" target="_blank" class="btn btn-outline" style="font-size:0.85rem; padding:0.4rem 0.8rem; margin-top:0.5rem; display:inline-block;">View →</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{% if not products %}
+<div style="text-align:center; padding:3rem; background:white; border-radius:12px;">
+    <p style="color:#999;">No products found. Try a different search term or run the scrapers first.</p>
+</div>
+{% endif %}
+{% endblock %}
